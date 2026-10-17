@@ -584,10 +584,31 @@ function initSheetsIfNeeded() {
 [연동 필수 조건 - 매우 중요!]
 1. 구글 시트에서 데이터 불러오기 (GET 요청):
    - 페이지가 열릴 때 및 [🔄 시트에서 명단/결과 불러오기] 버튼을 누르면 웹앱 URL로 GET 요청을 보내서 `students`, `roles`, `results` 데이터를 가져와 화면에 표시해 줘.
+   - 위 code.gs의 실제 응답 형식을 반드시 따라줘: { status: "success", students: [{ num: 1, name: "김민준" }], roles: [{ role: "칠판당번", desc: "칠판 닦기" }], results: [{ date: "2026-10-17 09:00", num: 1, name: "김민준", role: "칠판당번", desc: "칠판 닦기" }] }.
+   - students와 roles는 문자열 배열이 아니라 객체 배열이야. 학생 이름은 student.name, 번호는 student.num, 역할명은 role.role, 설명은 role.desc를 사용해 줘. 객체 자체를 문자열로 바꾸거나 배열에 바로 join을 적용하면 [object Object]가 표시되므로 금지해 줘.
+   - 기존 직접 입력 방식의 문자열 배열은 입력 경계에서 객체 배열로 변환하고, 이후 불러오기·랜덤 배정·카드 표시·저장에서는 같은 객체 구조를 유지해 줘. 시트의 번호는 유지하고, 학생 이름이나 번호를 다시 추측해서 만들지 마.
+   - 텍스트 영역에는 students.map(s => s.name).join('\n'), 역할 입력에는 roles.map(r => r.role).join('\n')처럼 문자열 필드만 표시해 줘. 입력을 수정하지 않은 경우 원래 번호와 역할 설명을 그대로 보존해 줘.
+   - 카드의 이름과 역할, 선택 상자의 표시 문구에는 textContent를 사용해 줘. 저장된 results도 result.name과 result.role로 표시해 줘.
+   - HTTP 오류, status가 success가 아닌 응답, 배열이 아닌 students/roles/results는 오류로 안내하고 기존 화면 데이터를 유지해 줘. 이름이 비어 있는 행은 제외하고 이름이 객체인 잘못된 응답은 표시하지 마.
 2. 배정 결과 저장하기 (POST 요청 - CORS 에러 방지 필수):
    - [💾 배정 결과 구글 시트에 저장] 버튼을 누르면 웹앱 URL로 `fetch` POST 요청을 보내줘.
    - 주의: GitHub Pages에서 구글 Apps Script로 POST 요청을 보낼 때 CORS 에러(Preflight 차단)가 발생하지 않도록, 반드시 `headers: { "Content-Type": "text/plain;charset=utf-8" }`로 설정하고 `body: JSON.stringify({ action: "saveResults", assignments: [...] })` 형태로 전송해 줘.
+   - assignments의 각 항목은 { num: student.num, name: student.name, role: selectedRole.role, desc: selectedRole.desc }로 구성해 줘. name이나 role에 객체 전체를 넣지 마.
 3. 통신 중에는 버튼에 '불러오는 중...', '저장 중...' 로딩 상태를 표시해서 교사가 진행 상황을 알 수 있게 해줘.</div>
+          </div>
+
+          <div class="border border-amber-200 rounded-xl overflow-hidden mb-6">
+            <div class="bg-amber-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-amber-900">학생 이름이 [object Object]로 보일 때: 기존 앱 수정 요청</h3>
+              <button onclick="copyText('prompt-name-fix', this)" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg">📋 수정 요청 복사</button>
+            </div>
+            <div id="prompt-name-fix" class="p-4 bg-slate-900 text-slate-100 font-mono text-xs leading-relaxed whitespace-pre-wrap">시트에서 불러온 학생 이름이 [object Object]로 표시되는 오류를 수정해 줘.
+Apps Script GET 응답은 students: [{ num: 1, name: "김민준" }], roles: [{ role: "칠판당번", desc: "칠판 닦기" }], results: [{ date: "2026-10-17 09:00", num: 1, name: "김민준", role: "칠판당번", desc: "칠판 닦기" }] 형식이야.
+현재 불러오기 함수부터 입력창, 학생 선택, 랜덤 배정, 결과 카드, 저장 함수까지 확인해 줘. 객체를 그대로 출력하거나 String(student), students.join('\n')을 사용하지 말고 student.name을 표시해 줘. 역할은 role.role을 표시해 줘.
+학생·역할 상태는 객체 배열로 유지하고 입력창에만 students.map(s => s.name).join('\n')과 roles.map(r => r.role).join('\n')을 사용해 줘. 이름·역할명은 textContent로 표시하고 원래 학생 번호와 역할 설명은 보존해 줘.
+저장할 assignments는 { num, name, role, desc } 구조이며 name과 role은 문자열이어야 해. 잘못된 응답은 오류를 안내하고 기존 데이터를 유지해 줘.
+시트의 이름 표시 → 역할 배정 → 저장 → 다시 불러오기까지 검증해 줘. 기존 URL 설정과 다른 기능은 유지해 줘.</div>
+            <p class="p-4 text-xs text-slate-700 bg-white">이 페이지는 연수 안내서입니다. 위 수정 요청을 <strong>실제로 만든 학급 앱의 코드와 함께</strong> AI Studio 등에 전달한 뒤, 수정된 앱을 GitHub에 반영하세요. 안내 페이지 업데이트만으로 별도 앱의 코드는 변경되지 않습니다.</p>
           </div>
 
           <!-- 3 Critical Checkpoints Box -->
